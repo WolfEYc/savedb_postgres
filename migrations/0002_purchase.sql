@@ -1,6 +1,7 @@
 CREATE TABLE purchase (
-    account_number INT NOT NULL,
-    purchase_datetime DATETIME NOT NULL,
+    id BIGSERIAL PRIMARY KEY,
+    account_number BIGINT NOT NULL,
+    purchase_datetime TIMESTAMP NOT NULL,
     purchase_amount DECIMAL(10, 2) NOT NULL,
     post_date DATE NOT NULL,
     purchase_number INT NOT NULL,

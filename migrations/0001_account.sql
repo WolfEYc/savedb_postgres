@@ -1,5 +1,5 @@
 CREATE TABLE account (
-    account_number INT PRIMARY KEY,
+    account_number BIGINT PRIMARY KEY,
     mobile_number BIGINT NOT NULL,
     email_address VARCHAR(50) NOT NULL,
     ssn INT NOT NULL,

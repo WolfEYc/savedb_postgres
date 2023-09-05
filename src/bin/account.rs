@@ -1,9 +1,9 @@
 use chrono::NaiveDate;
 use savelib::*;
 use csv::Reader;
-use futures::future::join_all;
 use serde::{Deserialize, Deserializer};
-use sqlx::{Pool, QueryBuilder, PgPool, postgres::PgQueryResult, Postgres};
+use soa_derive::StructOfArray;
+use sqlx::{PgPool, postgres::PgQueryResult};
 use std::{io::Stdin, usize};
 use color_eyre::Result;
 
@@ -47,7 +47,7 @@ where
     Ok(Some(parsed))
 }
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, StructOfArray)]
 pub struct Account {
     pub last_name: String,
     pub first_name: String,
@@ -63,66 +63,28 @@ pub struct Account {
     pub ssn: i32,
     pub email_address: String,
     pub mobile_number: i64,
-    pub account_number: i32,
+    pub account_number: i64,
 }
 
-async fn upload_chunk(
-    accounts: &[Account],
-    pool: &PgPool,
-) -> Result<PgQueryResult, sqlx::Error> {
-    let mut query_builder: QueryBuilder<Postgres> = QueryBuilder::new(
-        "REPLACE INTO account(
-            account_number,
-            mobile_number,
-            email_address,
-            ssn,
-            dob,
-            zip,
-            account_state,
-            city,
-            unit,
-            street_address,
-            first_name,
-            last_name
-        ) ",
-    );
-
-    query_builder.push_values(accounts, |mut b, a: &Account| {
-        let a = a.clone();
-        b.push_bind(a.account_number)
-            .push_bind(a.mobile_number)
-            .push_bind(a.email_address)
-            .push_bind(a.ssn)
-            .push_bind(a.dob)
-            .push_bind(a.zip)
-            .push_bind(a.state)
-            .push_bind(a.city)
-            .push_bind(a.unit)
-            .push_bind(a.street_address)
-            .push_bind(a.first_name)
-            .push_bind(a.last_name);
-    });
-
-    query_builder.build().execute(pool).await
+pub async fn upload(accounts: AccountVec, pool: &PgPool) -> Result<PgQueryResult, sqlx::Error> {
+    sqlx::query_file!("queries/upload_accounts.sql", 
+        accounts.account_number.as_slice(),
+        accounts.mobile_number.as_slice(),
+        accounts.email_address.as_slice(),
+        accounts.ssn.as_slice(),
+        accounts.dob.as_slice(),
+        accounts.zip.as_slice(),
+        accounts.state.as_slice(),
+        accounts.city.as_slice(),
+        accounts.unit.as_slice(),
+        accounts.street_address.as_slice(),
+        accounts.first_name.as_slice(),
+        accounts.last_name.as_slice()
+    ).execute(pool)
+    .await
 }
 
-pub async fn upload(accounts: Vec<Account>, pool: &Pool<MySql>) -> Result<(), sqlx::Error> {
-    let uploads = accounts
-        .chunks(ACCOUNT_CHUNK)
-        .map(|chunk| upload_chunk(chunk, pool));
-
-    let upload_results = join_all(uploads).await;
-
-    let result = upload_results.into_iter().find(|r| r.is_err());
-
-    if let Some(Err(err)) = result {
-        Err(err)
-    } else {
-        Ok(())
-    }
-}
-
-pub fn parse(mut reader: Reader<Stdin>) -> Result<Vec<Account>> {
+pub fn parse(mut reader: Reader<Stdin>) -> Result<AccountVec> {
     reader
         .deserialize()
         .map(|r| {
@@ -140,5 +102,9 @@ async fn main() -> Result<()> {
     let reader = build_reader();
     
     let accounts = parse(reader)?;
-    Ok(upload(accounts, &pool).await?)
+    let uploadresult = upload(accounts, &pool).await?;
+    
+    println!("rows_affected {}", uploadresult.rows_affected());
+
+    Ok(())
 }
