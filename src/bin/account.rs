@@ -7,9 +7,6 @@ use sqlx::{PgPool, postgres::PgQueryResult};
 use std::{io::Stdin, usize};
 use color_eyre::Result;
 
-const ACCOUNT_ARGS: usize = 12;
-const ACCOUNT_CHUNK: usize = BIND_LIMIT / ACCOUNT_ARGS;
-
 const DOB_FORMAT: &'static str = "%m/%d/%Y";
 
 fn deserialize_dob<'de, D>(deserializer: D) -> Result<NaiveDate, D::Error>
@@ -29,17 +26,14 @@ where
         .map_err(serde::de::Error::custom)
 }
 
-fn deserialize_unit<'de, D>(deserializer: D) -> Result<Option<i16>, D::Error>
-where
-    D: Deserializer<'de>,
-{
+fn deserialize_unit<'de, D>(deserializer: D) -> Result<Option<i16>, D::Error> where D: Deserializer<'de> {
     let str = String::deserialize(deserializer)?;
 
     if str.is_empty() {
         return Ok(None);
     };
 
-    let parsed: i16 = str
+    let parsed = str
         .replace("#", "")
         .parse()
         .map_err(serde::de::Error::custom)?;
@@ -48,6 +42,7 @@ where
 }
 
 #[derive(Debug, Deserialize, StructOfArray)]
+#[soa_derive[Debug]]
 pub struct Account {
     pub last_name: String,
     pub first_name: String,
@@ -67,7 +62,7 @@ pub struct Account {
 }
 
 pub async fn upload(accounts: AccountVec, pool: &PgPool) -> Result<PgQueryResult, sqlx::Error> {
-    sqlx::query_file!("queries/upload_accounts.sql", 
+    sqlx::query_file_unchecked!("queries/upload_accounts.sql", 
         accounts.account_number.as_slice(),
         accounts.mobile_number.as_slice(),
         accounts.email_address.as_slice(),
@@ -94,6 +89,16 @@ pub fn parse(mut reader: Reader<Stdin>) -> Result<AccountVec> {
         .collect()
 }
 
+pub async fn list_accounts(pool: &PgPool) -> Result<()> {
+    let accounts = sqlx::query_file!("queries/list_all_accounts.sql")
+        .fetch_all(pool)
+        .await?;
+
+    println!("{:?}", accounts);
+
+    Ok(())
+}
+
 #[tokio::main(flavor="current_thread")]
 async fn main() -> Result<()> {
     color_eyre::install()?;
@@ -104,6 +109,8 @@ async fn main() -> Result<()> {
     let accounts = parse(reader)?;
     let uploadresult = upload(accounts, &pool).await?;
     
+    //list_accounts(&pool).await?;
+
     println!("rows_affected {}", uploadresult.rows_affected());
 
     Ok(())

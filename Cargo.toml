@@ -23,5 +23,5 @@ futures = "0.3.28"
 prettytable-rs = "0.10.0"
 serde = { version = "1.0.188", features = ["derive"] }
 soa_derive = "0.13.0"
-sqlx = { version = "0.7.1", features = ["bigdecimal", "postgres", "runtime-tokio-rustls", "time", "chrono"] }
+sqlx = { version = "0.7.1", features = ["postgres", "runtime-tokio-rustls", "time", "chrono", "bigdecimal"] }
 tokio = { version = "1.32.0", features = ["full"] }

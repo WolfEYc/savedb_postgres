@@ -4,7 +4,7 @@ use csv::Reader;
 use serde::{Deserialize, Deserializer};
 use soa_derive::StructOfArray;
 use sqlx::{PgPool, postgres::PgQueryResult, types::BigDecimal};
-use std::io::Stdin;
+use std::{io::Stdin, str::FromStr};
 use color_eyre::Result;
 
 const PURCHASE_DATETIME_FORMAT: &'static str = "%m%d%Y %H:%M:%S";
@@ -32,10 +32,21 @@ where
 
     match s.pop() {
         None => Err(serde::de::Error::custom("Empty transaction amt")),
-        Some(op) => s
-            .parse::<BigDecimal>()
-            .map(|amt| if op == '-' { -amt } else { amt })
-            .map_err(serde::de::Error::custom),
+        Some(op) => {
+
+            if op == '-' {
+                s = format!("{}{}", op, s);
+            }
+
+            let dec = BigDecimal::from_str(&s)
+                .map_err(serde::de::Error::custom)?
+                .with_prec(10)
+                .with_scale(2);
+            
+            //println!("{}", dec);
+
+            Ok(dec)
+        }
     }
 }
 
@@ -94,7 +105,7 @@ pub struct Purchase {
     pub merchant_category_code: i16,
 }
 
-pub async fn upload(purchases: PurchaseVec, pool: &PgPool) -> Result<PgQueryResult, sqlx::Error> {
+pub async fn upload(purchases: &PurchaseVec, pool: &PgPool) -> Result<PgQueryResult, sqlx::Error> {
     sqlx::query_file!("queries/upload_purchases.sql", 
         purchases.account_number.as_slice(),
         purchases.transaction_datetime.as_slice(),
@@ -125,6 +136,17 @@ pub fn parse(mut reader: Reader<Stdin>) -> Result<PurchaseVec> {
         .collect()
 }
 
+pub async fn list_all_purchases(pool: &PgPool) -> Result<()> {
+    let purchases = sqlx::query_file!("queries/list_all_purchases.sql")
+        .fetch_all(pool)
+        .await?;
+
+    for purchase in purchases {
+        println!("{:?}", purchase.purchase_amount.to_string().parse::<f64>());
+    }
+
+    Ok(())
+}
 
 #[tokio::main(flavor="current_thread")]
 async fn main() -> Result<()> {
@@ -134,7 +156,9 @@ async fn main() -> Result<()> {
     let reader = build_reader();
 
     let purchases = parse(reader)?;
-    let uploadresult = upload(purchases, &pool).await?;
+    let uploadresult = upload(&purchases, &pool).await?;
+
+    //list_all_purchases(&pool).await?;
 
     println!("rows_affected {}", uploadresult.rows_affected());
 

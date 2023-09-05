@@ -5,7 +5,7 @@ CREATE TABLE account (
     ssn INT NOT NULL,
     dob DATE NOT NULL,
     zip INT NOT NULL,
-    account_state CHAR(2) NOT NULL,
+    account_state VARCHAR(2) NOT NULL,
     city VARCHAR(50) NOT NULL,
     unit SMALLINT,
     street_address VARCHAR(50) NOT NULL,
