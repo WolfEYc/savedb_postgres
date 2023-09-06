@@ -16,16 +16,6 @@ where
     deserialize_date(deserializer, DOB_FORMAT)
 }
 
-fn deserialize_ssn<'de, D>(deserializer: D) -> Result<i32, D::Error>
-where
-    D: Deserializer<'de>,
-{
-    String::deserialize(deserializer)?
-        .replace("-", "")
-        .parse()
-        .map_err(serde::de::Error::custom)
-}
-
 fn deserialize_unit<'de, D>(deserializer: D) -> Result<Option<i16>, D::Error> where D: Deserializer<'de> {
     let str = String::deserialize(deserializer)?;
 
@@ -54,10 +44,9 @@ pub struct Account {
     pub zip: i32,
     #[serde(deserialize_with = "deserialize_dob")]
     pub dob: NaiveDate,
-    #[serde(deserialize_with = "deserialize_ssn")]
-    pub ssn: i32,
+    pub ssn: String,
     pub email_address: String,
-    pub mobile_number: i64,
+    pub mobile_number: String,
     pub account_number: i64,
 }
 

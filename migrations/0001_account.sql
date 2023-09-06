@@ -1,8 +1,8 @@
 CREATE TABLE account (
     account_number BIGINT PRIMARY KEY,
-    mobile_number BIGINT NOT NULL,
+    mobile_number VARCHAR(10) NOT NULL,
     email_address VARCHAR(50) NOT NULL,
-    ssn INT NOT NULL,
+    ssn VARCHAR(11) NOT NULL,
     dob DATE NOT NULL,
     zip INT NOT NULL,
     account_state VARCHAR(2) NOT NULL,

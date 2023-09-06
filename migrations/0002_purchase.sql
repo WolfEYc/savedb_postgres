@@ -9,5 +9,5 @@ CREATE TABLE purchase (
     merchant_state VARCHAR(2) NOT NULL,
     merchant_category_code SMALLINT NOT NULL,
     PRIMARY KEY (account_number, purchase_number),    
-    FOREIGN KEY (account_number) REFERENCES account(account_number),
+    FOREIGN KEY (account_number) REFERENCES account(account_number)
 );

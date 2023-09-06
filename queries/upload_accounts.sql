@@ -13,9 +13,9 @@ INSERT INTO account (
     last_name
 ) SELECT * FROM UNNEST (
     $1::BIGINT[],
-    $2::BIGINT[],
+    $2::VARCHAR[],
     $3::VARCHAR[],
-    $4::INT[],
+    $4::VARCHAR[],
     $5::DATE[],
     $6::INT[],
     $7::VARCHAR[],
