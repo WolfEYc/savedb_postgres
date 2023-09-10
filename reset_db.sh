@@ -1,5 +1,5 @@
 #!/bin/sh
-sqlx database reset
-cargo build
-target/debug/savedb account < data/account_info.csv
-target/debug/savedb purchase < data/transactions.csv
+cargo run --bin wipedb
+sqlx migrate run
+cargo run --bin account < data/account_info.csv
+cargo run --bin purchase < data/transactions.csv

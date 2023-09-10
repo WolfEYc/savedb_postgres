@@ -12,3 +12,9 @@ CREATE TABLE account (
     first_name VARCHAR(50) NOT NULL,
     last_name VARCHAR(50) NOT NULL
 );
+
+CREATE INDEX ON account ((lower(last_name)));
+CREATE INDEX ON account ((lower(first_name)));
+CREATE INDEX ON account ((lower(city)));
+CREATE INDEX ON account ((lower(street_address)));
+CREATE INDEX ON account ((lower(email_address)));

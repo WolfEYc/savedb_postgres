@@ -11,3 +11,6 @@ CREATE TABLE purchase (
     PRIMARY KEY (account_number, purchase_number),    
     FOREIGN KEY (account_number) REFERENCES account(account_number)
 );
+
+CREATE INDEX ON purchase ((lower(merchant_name)));
+CREATE INDEX ON purchase ((lower(merchant_number)));

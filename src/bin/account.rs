@@ -33,7 +33,7 @@ fn deserialize_unit<'de, D>(deserializer: D) -> Result<Option<i16>, D::Error> wh
 
 #[derive(Debug, Deserialize, StructOfArray)]
 #[soa_derive[Debug]]
-pub struct Account {
+pub struct CSVAccount {
     pub last_name: String,
     pub first_name: String,
     pub street_address: String,
@@ -50,7 +50,7 @@ pub struct Account {
     pub account_number: i64,
 }
 
-pub async fn upload(accounts: AccountVec, pool: &PgPool) -> Result<PgQueryResult, sqlx::Error> {
+pub async fn upload(accounts: CSVAccountVec, pool: &PgPool) -> Result<PgQueryResult, sqlx::Error> {
     sqlx::query_file_unchecked!("queries/upload_accounts.sql", 
         accounts.account_number.as_slice(),
         accounts.mobile_number.as_slice(),
@@ -68,11 +68,11 @@ pub async fn upload(accounts: AccountVec, pool: &PgPool) -> Result<PgQueryResult
     .await
 }
 
-pub fn parse(mut reader: Reader<Stdin>) -> Result<AccountVec> {
+pub fn parse(mut reader: Reader<Stdin>) -> Result<CSVAccountVec> {
     reader
         .deserialize()
         .map(|r| {
-            let account: Account = r?;
+            let account: CSVAccount = r?;
             Ok(account)
         })
         .collect()
