@@ -75,7 +75,9 @@ async fn main() -> Result<()> {
     let outliers = find_outliers(&pool).await?;
     let uploadresult = 
 
-    //list_accounts(&pool).await?;
+    
+	//list_accounts(&pool).await?
+
 
     println!("rows_affected {}", uploadresult.rows_affected());
 
