@@ -1,11 +1,11 @@
-use chrono::{NaiveDateTime, NaiveDate};
-use savelib::*;
+use chrono::{NaiveDate, NaiveDateTime};
+use color_eyre::Result;
 use csv::Reader;
+use savelib::*;
 use serde::{Deserialize, Deserializer};
 use soa_derive::StructOfArray;
-use sqlx::{PgPool, postgres::PgQueryResult, types::BigDecimal};
+use sqlx::{postgres::PgQueryResult, types::BigDecimal, PgPool};
 use std::{io::Stdin, str::FromStr};
-use color_eyre::Result;
 
 const PURCHASE_DATETIME_FORMAT: &'static str = "%m%d%Y %H:%M:%S";
 const POST_DATE_FORMAT: &'static str = "%m%d%Y";
@@ -33,7 +33,6 @@ where
     match s.pop() {
         None => Err(serde::de::Error::custom("Empty transaction amt")),
         Some(op) => {
-
             if op == '-' {
                 s = format!("{}{}", op, s);
             }
@@ -42,7 +41,7 @@ where
                 .map_err(serde::de::Error::custom)?
                 .with_prec(10)
                 .with_scale(2);
-            
+
             //println!("{}", dec);
 
             Ok(dec)
@@ -61,20 +60,23 @@ fn fix_legagy_merchant_name(purchase: &mut Purchase) {
 }
 
 impl<'de> Deserialize<'de> for MerchantDescription {
-    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error> where D: Deserializer<'de> {
+    fn deserialize<D>(deserializer: D) -> std::result::Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
         let s = String::deserialize(deserializer)?;
         let split = s
             .rsplit_once(" ")
             .ok_or(serde::de::Error::custom("Merchant name parse error"))?;
-    
+
         let name: String = split.0.split_whitespace().collect::<Vec<&str>>().join(" ");
-    
+
         let state: String = split
             .1
             .get(..2)
             .ok_or(serde::de::Error::custom("Merchant state not found"))?
             .to_string();
-    
+
         //println!("name: {name} state: {state}");
         Ok(MerchantDescription {
             merchant_name: name,
@@ -106,7 +108,8 @@ pub struct Purchase {
 }
 
 pub async fn upload(purchases: &PurchaseVec, pool: &PgPool) -> Result<PgQueryResult, sqlx::Error> {
-    sqlx::query_file!("queries/upload_purchases.sql", 
+    sqlx::query_file!(
+        "queries/upload_purchases.sql",
         purchases.account_number.as_slice(),
         purchases.transaction_datetime.as_slice(),
         purchases.transaction_amount.as_slice(),
@@ -116,7 +119,8 @@ pub async fn upload(purchases: &PurchaseVec, pool: &PgPool) -> Result<PgQueryRes
         purchases.merchant_description.merchant_name.as_slice(),
         purchases.merchant_description.merchant_state.as_slice(),
         purchases.merchant_category_code.as_slice()
-    ).execute(pool)
+    )
+    .execute(pool)
     .await
 }
 
@@ -148,7 +152,7 @@ pub async fn list_all_purchases(pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-#[tokio::main(flavor="current_thread")]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     color_eyre::install()?;
     dotenvy::dotenv()?;

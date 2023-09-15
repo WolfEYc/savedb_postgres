@@ -15,6 +15,7 @@ name = "purchase"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+bigdecimal = "0.4.1"
 chrono = "0.4.27"
 color-eyre = "0.6.2"
 csv = "1.2.2"
@@ -23,5 +24,11 @@ futures = "0.3.28"
 prettytable-rs = "0.10.0"
 serde = { version = "1.0.188", features = ["derive"] }
 soa_derive = "0.13.0"
-sqlx = { version = "0.7.1", features = ["postgres", "runtime-tokio-rustls", "time", "chrono", "bigdecimal"] }
+sqlx = { version = "0.7.1", features = [
+	"postgres",
+	"runtime-tokio-rustls",
+	"time",
+	"chrono",
+	"bigdecimal",
+] }
 tokio = { version = "1.32.0", features = ["full"] }

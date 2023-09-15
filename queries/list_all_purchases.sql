@@ -1,1 +1,1 @@
-SELECT * FROM purchase;
+SELECT * FROM purchase
