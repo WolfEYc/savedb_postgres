@@ -1,13 +1,13 @@
 use chrono::NaiveDate;
-use savelib::*;
+use color_eyre::Result;
 use csv::Reader;
+use savelib::*;
 use serde::{Deserialize, Deserializer};
 use soa_derive::StructOfArray;
-use sqlx::{PgPool, postgres::PgQueryResult};
+use sqlx::{postgres::PgQueryResult, PgPool};
 use std::{io::Stdin, usize};
-use color_eyre::Result;
 
-const DOB_FORMAT: &'static str = "%m/%d/%Y";
+const DOB_FORMAT: &str = "%m/%d/%Y";
 
 fn deserialize_dob<'de, D>(deserializer: D) -> Result<NaiveDate, D::Error>
 where
@@ -16,7 +16,10 @@ where
     deserialize_date(deserializer, DOB_FORMAT)
 }
 
-fn deserialize_unit<'de, D>(deserializer: D) -> Result<Option<i16>, D::Error> where D: Deserializer<'de> {
+fn deserialize_unit<'de, D>(deserializer: D) -> Result<Option<i16>, D::Error>
+where
+    D: Deserializer<'de>,
+{
     let str = String::deserialize(deserializer)?;
 
     if str.is_empty() {
@@ -24,7 +27,7 @@ fn deserialize_unit<'de, D>(deserializer: D) -> Result<Option<i16>, D::Error> wh
     };
 
     let parsed = str
-        .replace("#", "")
+        .replace('#', "")
         .parse()
         .map_err(serde::de::Error::custom)?;
 
@@ -51,7 +54,8 @@ pub struct CSVAccount {
 }
 
 pub async fn upload(accounts: CSVAccountVec, pool: &PgPool) -> Result<PgQueryResult, sqlx::Error> {
-    sqlx::query_file_unchecked!("queries/upload_accounts.sql", 
+    sqlx::query_file_unchecked!(
+        "queries/upload_accounts.sql",
         accounts.account_number.as_slice(),
         accounts.mobile_number.as_slice(),
         accounts.email_address.as_slice(),
@@ -64,7 +68,8 @@ pub async fn upload(accounts: CSVAccountVec, pool: &PgPool) -> Result<PgQueryRes
         accounts.street_address.as_slice(),
         accounts.first_name.as_slice(),
         accounts.last_name.as_slice()
-    ).execute(pool)
+    )
+    .execute(pool)
     .await
 }
 
@@ -88,16 +93,16 @@ pub async fn list_accounts(pool: &PgPool) -> Result<()> {
     Ok(())
 }
 
-#[tokio::main(flavor="current_thread")]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     color_eyre::install()?;
     dotenvy::dotenv()?;
     let pool = connect_db().await?;
     let reader = build_reader();
-    
+
     let accounts = parse(reader)?;
     let uploadresult = upload(accounts, &pool).await?;
-    
+
     //list_accounts(&pool).await?;
 
     println!("rows_affected {}", uploadresult.rows_affected());

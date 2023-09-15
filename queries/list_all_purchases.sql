@@ -1,1 +1,1 @@
-SELECT * FROM purchase
+SELECT * FROM purchase ORDER BY purchase_amount

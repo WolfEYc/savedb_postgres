@@ -1,10 +1,13 @@
+use bigdecimal::ToPrimitive;
 use chrono::{NaiveDate, NaiveDateTime};
 use color_eyre::Result;
 use csv::{Reader, ReaderBuilder, Trim};
 use serde::{Deserialize, Deserializer};
+use soa_derive::StructOfArray;
 use sqlx::{types::BigDecimal, FromRow, PgPool, Pool, Postgres};
 use std::{
     env,
+    hash::Hash,
     io::{self, Stdin},
 };
 
@@ -43,11 +46,33 @@ where
     NaiveDateTime::parse_from_str(&s, format).map_err(serde::de::Error::custom)
 }
 
+#[derive(Debug, Clone)]
+pub struct PurchaseAmt(pub f64);
+
+impl From<BigDecimal> for PurchaseAmt {
+    fn from(value: BigDecimal) -> PurchaseAmt {
+        PurchaseAmt(value.to_f64().unwrap())
+    }
+}
+
+#[derive(Debug, StructOfArray)]
+pub struct PurchasePKey {
+    pub account_number: i64,
+    pub purchase_number: i32,
+}
+
+#[derive(Debug, PartialEq, Eq, Hash)]
+pub struct RecurringPurchase {
+    pub account_number: i64,
+    pub merchant_number: String,
+}
+
 #[derive(Debug, FromRow, Clone)]
 pub struct PurchaseRow {
     pub account_number: i64,
     pub purchase_datetime: NaiveDateTime,
-    pub purchase_amount: BigDecimal,
+    #[sqlx(try_from = "BigDecimal")]
+    pub purchase_amount: PurchaseAmt,
     pub post_date: NaiveDate,
     pub purchase_number: i32,
     pub merchant_number: String,
@@ -56,11 +81,20 @@ pub struct PurchaseRow {
     pub merchant_category_code: i16,
 }
 
-impl PurchaseRow {
-    pub fn key(&self) -> [u8; 12] {
-        let mut pkey = [0; 12];
-        pkey[..8].copy_from_slice(&self.account_number.to_ne_bytes());
-        pkey[8..].copy_from_slice(&self.purchase_number.to_ne_bytes());
-        pkey
+impl From<PurchaseRow> for PurchasePKey {
+    fn from(value: PurchaseRow) -> Self {
+        PurchasePKey {
+            account_number: value.account_number,
+            purchase_number: value.purchase_number,
+        }
+    }
+}
+
+impl From<PurchaseRow> for RecurringPurchase {
+    fn from(value: PurchaseRow) -> Self {
+        RecurringPurchase {
+            account_number: value.account_number,
+            merchant_number: value.merchant_number,
+        }
     }
 }

@@ -7,8 +7,8 @@ use soa_derive::StructOfArray;
 use sqlx::{postgres::PgQueryResult, types::BigDecimal, PgPool};
 use std::{io::Stdin, str::FromStr};
 
-const PURCHASE_DATETIME_FORMAT: &'static str = "%m%d%Y %H:%M:%S";
-const POST_DATE_FORMAT: &'static str = "%m%d%Y";
+const PURCHASE_DATETIME_FORMAT: &str = "%m%d%Y %H:%M:%S";
+const POST_DATE_FORMAT: &str = "%m%d%Y";
 
 fn deserialize_purchase_datetime<'de, D>(deserializer: D) -> Result<NaiveDateTime, D::Error>
 where
@@ -49,7 +49,7 @@ where
     }
 }
 
-fn is_word(s: &String) -> bool {
+fn is_word(s: &str) -> bool {
     s.chars().all(|c| c.is_alphabetic())
 }
 
@@ -66,7 +66,7 @@ impl<'de> Deserialize<'de> for MerchantDescription {
     {
         let s = String::deserialize(deserializer)?;
         let split = s
-            .rsplit_once(" ")
+            .rsplit_once(' ')
             .ok_or(serde::de::Error::custom("Merchant name parse error"))?;
 
         let name: String = split.0.split_whitespace().collect::<Vec<&str>>().join(" ");

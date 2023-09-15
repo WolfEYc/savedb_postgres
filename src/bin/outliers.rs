@@ -1,7 +1,6 @@
-use bigdecimal::ToPrimitive;
-use color_eyre::{eyre::eyre, Result};
-use savelib::{connect_db, PurchaseRow};
-use sqlx::PgPool;
+use color_eyre::Result;
+use savelib::{connect_db, PurchasePKeyVec, PurchaseRow, RecurringPurchase};
+use sqlx::{postgres::PgQueryResult, PgPool};
 use std::collections::HashMap;
 const REQ_PURCHASES_TO_FLAG: usize = 4;
 
@@ -13,8 +12,8 @@ fn calc_bounds(nums: Vec<f64>) -> (f64, f64) {
     let q3 = nums[3 * nums.len() / 4];
 
     let iqr = q3 - q1;
-    let lower = q1 - IQR_MULT * iqr - BOUND_PADDING;
-    let upper = q3 + IQR_MULT * iqr + BOUND_PADDING;
+    let lower = (q1 - IQR_MULT * iqr) - BOUND_PADDING;
+    let upper = (q3 + IQR_MULT * iqr) + BOUND_PADDING;
 
     (lower, upper)
 }
@@ -24,41 +23,33 @@ async fn find_outliers(pool: &PgPool) -> Result<Vec<PurchaseRow>> {
         .fetch_all(pool)
         .await?;
 
-    let mut recurring_purchases: HashMap<[u8; 12], Vec<PurchaseRow>> = HashMap::new();
+    let mut recurring_purchases: HashMap<RecurringPurchase, Vec<PurchaseRow>> = HashMap::new();
 
     for purchase in purchases {
         recurring_purchases
-            .entry(purchase.key())
+            .entry(purchase.clone().into())
             .or_default()
             .push(purchase);
     }
 
     let mut flagged_purchases: Vec<PurchaseRow> = Vec::new();
 
-    for (_, purchases) in recurring_purchases {
+    for purchases in recurring_purchases.into_values() {
         if purchases.len() < REQ_PURCHASES_TO_FLAG {
             continue;
         }
-        let purchase_amts: Vec<(PurchaseRow, f64)> = purchases
+
+        let amts = purchases.iter().map(|r| r.purchase_amount.0).collect();
+        let bounds = calc_bounds(amts);
+
+        println!("{:?}", bounds);
+
+        let outlier_purchases: Vec<PurchaseRow> = purchases
             .into_iter()
-            .map(|p| {
-                let res = p.purchase_amount.to_f64().unwrap();
-                (p, res)
-            })
+            .filter(|r| r.purchase_amount.0 < bounds.0 || r.purchase_amount.0 > bounds.1)
             .collect();
 
-        let bounds = calc_bounds(purchase_amts.iter().map(|r| r.1).collect());
-
-        let outlier_purchases: Vec<PurchaseRow> = purchase_amts
-            .into_iter()
-            .filter_map(|(row, amt)| {
-                if amt < bounds.0 || amt > bounds.1 {
-                    Some(row)
-                } else {
-                    None
-                }
-            })
-            .collect();
+        println!("{:#?}", outlier_purchases);
 
         flagged_purchases.extend(outlier_purchases);
     }
@@ -66,18 +57,27 @@ async fn find_outliers(pool: &PgPool) -> Result<Vec<PurchaseRow>> {
     Ok(flagged_purchases)
 }
 
+async fn upload_outliers(
+    outliers: Vec<PurchaseRow>,
+    pool: &PgPool,
+) -> Result<PgQueryResult, sqlx::Error> {
+    let outliers: PurchasePKeyVec = outliers.into_iter().map(|r| r.into()).collect();
+    sqlx::query_file!(
+        "queries/upload_outliers.sql",
+        outliers.account_number.as_slice(),
+        outliers.purchase_number.as_slice()
+    )
+    .execute(pool)
+    .await
+}
+
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     color_eyre::install()?;
     dotenvy::dotenv()?;
     let pool = connect_db().await?;
-
     let outliers = find_outliers(&pool).await?;
-    let uploadresult = 
-
-    
-	//list_accounts(&pool).await?
-
+    let uploadresult = upload_outliers(outliers, &pool).await?;
 
     println!("rows_affected {}", uploadresult.rows_affected());
 
